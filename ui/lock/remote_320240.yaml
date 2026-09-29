@@ -1,0 +1,275 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Remote Lock Component (Tile Grid + Control Detail Modal Integrated)
+# ─────────────────────────────────────────────────────────────────────────────
+
+globals:
+  - id: ${uid}_state_code
+    type: int
+    restore_value: no
+    initial_value: '0' # 0: locked, 1: unlocked, 2: jammed/error
+
+lvgl:
+  pages:
+    # ── 1. 主畫面網格卡片 (Main Tile) ───────────────────────────────────────────
+    - id: !extend ${page_id | default("main_page")}
+      widgets:
+        - container:
+            id: ${uid}_tile
+            grid_cell_row_pos: ${row}
+            grid_cell_column_pos: ${column}
+            grid_cell_row_span: ${row_span | default(1)}
+            grid_cell_column_span: ${column_span | default(1)}
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: button_${uid}
+                  widgets:
+                    - label:
+                        id: icon_${uid}
+                        text_font: $icon_font
+                        align: top_left
+                        text: ${icon_locked}
+                    - label:
+                        id: label_${uid}
+                        align: bottom_left
+                        long_mode: wrap
+                        width: 100%
+                        text_font: $title_font
+                        text: ${text}
+                  # 短按：快速 Toggle 上鎖/解鎖
+                  on_short_click:
+                    then:
+                      - script.execute: ${uid}_lock_toggle
+                  # 長按：開啟本組件內建的 Modal 控制視窗
+                  on_long_press:
+                    then:
+                      - lvgl.page.show: 
+                          id: modal_${uid}
+                          animation: MOVE_LEFT
+                          time: 300ms
+
+    # ── 2. 詳細控制彈窗 (Detail Modal) ─────────────────────────────────────────
+    - id: modal_${uid}
+      bg_color: 0x000000
+      bg_opa: 80%
+      widgets:
+        - container:
+            align: center
+            width: 280
+            height: 220
+            bg_color: 0x222222
+            radius: 12
+            pad_all: 12
+            widgets:
+              # 中央動態大 Icon
+              - label:
+                  id: modal_icon_${uid}
+                  align: top_mid
+                  y: 45
+                  text_font: mdi_icons_60
+                  text: ${icon_locked}
+
+              # 中央動態狀態文字
+              - label:
+                  id: modal_status_${uid}
+                  align: top_mid
+                  y: 100
+                  text_font: font_cn_22
+                  text: "讀取中"
+
+              # 獨立「上鎖」按鈕
+              - button:
+                  align: bottom_left
+                  width: 120
+                  height: 48
+                  bg_color: $button_on_color
+                  widgets:
+                    - label:
+                        align: center
+                        text_font: font_cn_22
+                        text: "上鎖"
+                        text_color: 0xFFFFFF # 👈 顯式設定文字為純白色
+                  on_click:
+                    then:
+                      - homeassistant.action:
+                          action: lock.lock
+                          data:
+                            entity_id: ${entity_id}
+
+
+              # 獨立「解鎖」按鈕
+              - button:
+                  align: bottom_right
+                  width: 120
+                  height: 48
+                  bg_color: 0xE53935 # 紅色警示按鈕
+                  widgets:
+                    - label:
+                        align: center
+                        text_font: font_cn_22
+                        text: "解鎖"
+                        text_color: 0xFFFFFF # 👈 顯式設定文字為純白色
+                  on_click:
+                    then:
+                      - homeassistant.action:
+                          action: lock.unlock
+                          data:
+                            entity_id: ${entity_id}
+
+
+              # 右上角關閉按鈕
+              - button:
+                  align: top_right
+                  width: 30
+                  height: 30
+                  bg_color: 0x424242
+                  widgets:
+                    - label:
+                        align: center
+                        text_font: mdi_icons_60
+                        text: $mdi_chevron_left
+                  on_click:
+                    then:
+                      - lvgl.page.show:
+                          id: ${page_id | default("main_page")}
+                          animation: OUT_RIGHT
+                          time: 300ms
+
+# ── 訂閱 Home Assistant 門鎖狀態 (單一數據源) ─────────────────────────────────────
+text_sensor:
+  - platform: homeassistant
+    id: ${uid}_ha_state
+    entity_id: ${entity_id}
+    on_value:
+      - lambda: |-
+          if (x == "locked") {
+            id(${uid}_state_code) = 0;
+            lv_label_set_text(id(modal_status_${uid}), "已上鎖");
+          } else if (x == "unlocked") {
+            id(${uid}_state_code) = 1;
+            lv_label_set_text(id(modal_status_${uid}), "已解鎖");
+          } else if (x == "locking") {
+            id(${uid}_state_code) = 3;  // 3: 上鎖中
+            lv_label_set_text(id(modal_status_${uid}), "上鎖中");
+          } else if (x == "unlocking") {
+            id(${uid}_state_code) = 4;  // 4: 解鎖中
+            lv_label_set_text(id(modal_status_${uid}), "解鎖中");
+          } else {
+            id(${uid}_state_code) = 2;  // 2: 卡住或真異常 (jammed 等)
+            if (x == "jammed") {
+              lv_label_set_text(id(modal_status_${uid}), "門鎖卡住");
+            } else {
+              lv_label_set_text(id(modal_status_${uid}), "異常");
+            }
+          }
+      - script.execute: ${uid}_sync_ui
+
+script:
+# ── 短按 Toggle 動作腳本 ───────────────────────────────────────────────────────
+  - id: ${uid}_lock_toggle
+    then:
+      - if:
+          condition:
+            lambda: return id(${uid}_state_code) == 0;
+          then:
+            - homeassistant.action:
+                action: lock.unlock
+                data:
+                  entity_id: ${entity_id}
+          else:
+            - homeassistant.action:
+                action: lock.lock
+                data:
+                  entity_id: ${entity_id}
+
+# ── 同時同步 Tile 卡片與 Detail Modal 的樣式與 Icon ─────────────────────────────
+  - id: ${uid}_sync_ui
+    then:
+      - if:
+          condition:
+            lambda: return id(${uid}_state_code) == 0;
+          then:
+            # 1. 已上鎖 (Locked)
+            - lvgl.widget.update:
+                id: button_${uid}
+                bg_color: $button_on_color
+            - lvgl.label.update:
+                id: icon_${uid}
+                text_color: $icon_on_color
+                text: ${icon_locked}
+            - lvgl.widget.update:
+                id: label_${uid}
+                text_color: $label_on_color
+            - lvgl.label.update:
+                id: modal_icon_${uid}
+                text_color: $icon_on_color
+                text: ${icon_locked}
+            - lvgl.widget.update:
+                id: modal_status_${uid}
+                text_color: 0x4CAF50
+          else:
+            - if:
+                condition:
+                  lambda: return id(${uid}_state_code) == 1;
+                then:
+                  # 2. 已解鎖 (Unlocked)
+                  - lvgl.widget.update:
+                      id: button_${uid}
+                      bg_color: $button_off_color
+                  - lvgl.label.update:
+                      id: icon_${uid}
+                      text_color: $icon_off_color
+                      text: ${icon_unlocked}
+                  - lvgl.widget.update:
+                      id: label_${uid}
+                      text_color: $label_off_color
+                  - lvgl.label.update:
+                      id: modal_icon_${uid}
+                      text_color: $icon_off_color
+                      text: ${icon_unlocked}
+                  - lvgl.widget.update:
+                      id: modal_status_${uid}
+                      text_color: 0xFFB74D
+                else:
+                  - if:
+                      condition:
+                        lambda: return id(${uid}_state_code) == 3 || id(${uid}_state_code) == 4;
+                      then:
+                        # 3 & 4. 動作中 (Locking / Unlocking) — 顯示藍色/黃色動態提示
+                        - lvgl.widget.update:
+                            id: button_${uid}
+                            bg_color: 0x1976D2 # 藍色 background
+                        - lvgl.label.update:
+                            id: icon_${uid}
+                            text_color: 0xFFFFFF
+                            text: ${icon_locked}
+                        - lvgl.widget.update:
+                            id: label_${uid}
+                            text_color: 0xFFFFFF
+                        - lvgl.label.update:
+                            id: modal_icon_${uid}
+                            text_color: 0x2196F3
+                            text: ${icon_locked}
+                        - lvgl.widget.update:
+                            id: modal_status_${uid}
+                            text_color: 0x2196F3
+                      else:
+                        # 2. 卡住或真正的異常 (Jammed/Error)
+                        - lvgl.widget.update:
+                            id: button_${uid}
+                            bg_color: 0xD32F2F # 紅色 background
+                        - lvgl.label.update:
+                            id: icon_${uid}
+                            text_color: 0xFFFFFF
+                            text: $mdi_alert_circle
+                        - lvgl.widget.update:
+                            id: label_${uid}
+                            text_color: 0xFFFFFF
+                        - lvgl.label.update:
+                            id: modal_icon_${uid}
+                            text_color: 0xE53935
+                            text: $mdi_alert_circle
+                        - lvgl.widget.update:
+                            id: modal_status_${uid}
+                            text_color: 0xE53935
