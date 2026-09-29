@@ -1,0 +1,127 @@
+---
+# To support additional glyphs you can define the glyphsets-substitution
+# in your main .yaml-file
+#
+# See also: https://esphome.io/components/font/#configuration-variables
+#
+# substitutions:
+#  icon_font: mdi_icons_40
+#  [... additional configuration ...]
+#  label_on_color: "white"
+#  glyphsets: "GF_Latin_Core" # <-- add this line
+
+font:
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_72
+    size: 72
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_48
+    size: 48
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_42
+    size: 42
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_36
+    size: 36
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_24
+    size: 24
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_20
+    size: 20
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_18
+    size: 18
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_14
+    size: 14
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_12
+    size: 12
+    bpp: 8
+    glyphsets: ${glyphsets | default("GF_Latin_Kernel")}
+
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_40
+    size: 40
+    bpp: 8
+
+    glyphs:
+      # Required by light detail page
+      - $mdi_brightness_6
+      - $mdi_chevron_up
+      - $mdi_circle_opacity
+      - $mdi_eyedropper
+      - $mdi_lightbulb
+      - $mdi_lock_open
+      - $mdi_lock
+      - $mdi_alert_circle
+        
+      # Main dashboard icons
+      - $mdi_ceiling_light
+      - $mdi_air_conditioner
+      - $mdi_desk_lamp
+      - $mdi_blinds
+      - $mdi_clock_time_eight
+      - $mdi_cellphone_charging
+      - $mdi_thermometer
+      - $mdi_thermometer_chevron_up
+      - $mdi_information_box
+      - $mdi_remote_desktop
+      - $mdi_power_plug
+      - $mdi_led_strip
+      - $mdi_play
+      - $mdi_pause 
+      - $mdi_skip_next 
+      - $mdi_skip_previous                                                                                                 
+      - $mdi_shuffle 
+      - $mdi_repeat 
+      - $mdi_repeat_once                                                                                                               
+      - $mdi_volume_high 
+      - $mdi_music_note
+      - $mdi_chevron_left
+      - $mdi_arrow_oscillating
+      - $mdi_fan
+      - $mdi_thermostat
+# For lock/detail.yaml
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_60
+    size: 60
+    bpp: 8
+
+    glyphs:
+      # Required by light detail page
+      - $mdi_lock_open
+      - $mdi_lock
+      - $mdi_alert_circle
+      - $mdi_chevron_left
+  - file:
+      type: gfonts
+      family: Noto Sans TC
+    id: font_cn_22
+    size: 22
+    glyphs: "上解鎖讀取中已卡住或真異常大門"

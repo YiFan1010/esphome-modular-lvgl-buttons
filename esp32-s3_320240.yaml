@@ -1,0 +1,115 @@
+esp32:
+  board: esp32s3box
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_PM_ENABLE: "y"  # Enable power management
+      CONFIG_PM_DFS_INIT_AUTO: "y"  # Enable automatic dynamic frequency scaling
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+preferences:
+  flash_write_interval: 5min
+
+pca9554:
+  - id: pca9557_io
+    address: 0x19 # 設定PCA9557的I2C位址
+# -------------------------------------------
+# LCD Back light
+# -------------------------------------------
+output:
+    # Backlight LED
+  - platform: ledc
+    pin: GPIO42
+    id: led_back_light
+    inverted: true
+    frequency: 1000Hz
+
+  - platform: gpio
+    id: lcd_cs
+    pin:
+      pca9554: pca9557_io
+      number: 0 # 對應PCA9557的IO1
+      mode: output
+      inverted: false
+
+  - platform: gpio
+    id: paen
+    pin:
+      pca9554: pca9557_io
+      number: 1 # 對應PCA9557的IO1
+      mode: output
+      inverted: true   
+light:
+  - platform: monochromatic
+    output: led_back_light
+    name: Backlight
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+globals:
+  - id: backlight_dimmed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+i2c:
+  scl: GPIO2
+  sda: GPIO1
+  scan: true
+
+spi:
+- id: tft_spi
+  clk_pin: GPIO41
+  mosi_pin: GPIO40
+  # miso_pin: 5 
+#- id: touch_spi
+#  clk_pin: 25
+#  mosi_pin: 32
+#  miso_pin: 35
+
+display:
+  - platform: ili9xxx
+    id: my_display
+    model: st7789v
+    spi_id: tft_spi
+    dc_pin: GPIO39
+  #  cs_pin: 4
+  #  reset_pin: 15
+    invert_colors: true
+    show_test_card: false
+    update_interval: never
+    auto_clear_enabled: false
+    #rotation: 90
+    transform:
+      swap_xy: True
+      mirror_x: True
+      mirror_y: False
+    dimensions:
+      height: 240
+      width: 320
+
+touchscreen:
+  platform: ft63x6
+  id: tft_touchscreen
+#  spi_id: touch_spi
+#  cs_pin: 33
+#  interrupt_pin: 34
+  calibration:
+    x_min: 0
+    x_max: 320
+    y_min: 0
+    y_max: 240
+  transform:
+#    mirror_x: true
+    mirror_y: true
+    swap_xy: true
+# Special LVGL settings required for this display
+lvgl:
+  rotation: ${rotation | default("0")}

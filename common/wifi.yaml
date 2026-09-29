@@ -1,0 +1,17 @@
+---
+wifi:
+  networks:
+    - ssid: "330"
+      password: "1234567890"
+      priority: 10.0
+    - ssid: "YuChen WIFI"
+      password: "1234567890"
+      priority: 9.0
+  ap:
+    password: ""
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 3
