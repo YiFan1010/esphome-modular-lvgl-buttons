@@ -1,0 +1,571 @@
+substitutions:
+  #左上相關
+  top_left_entity_id: light.yeelink_ceiling22_fbb0_light              #左上實體id
+  top_left_icon: "\U000f06e9"                                          #左上圖示(依font設定或新增)
+  top_left_action: light.toggle                                      #左上動作(依ha設定)
+  #左下相關
+  bottom_left_entity_id: light.xuan_guan_deng
+  bottom_left_icon: "\U000f06e9"
+  bottom_left_action: light.toggle 
+  #右上相關
+  top_right_entity_id: lock.lock_77a6
+  top_right_icon: "\U000f033e"
+  top_right_action: action #lock需在下面設定(不為on/off條件實體)
+  #右下相關
+  bottom_right_entity_id: switch.front_door_controller_da_men_jie_suo
+  bottom_right_icon: "\U000f033e"
+  bottom_right_action: switch.toggle
+  allowed_characters: "玄關客廳主燈大門上解鎖聆聽中處理回應等待命開機完成已切換樓下轉動卡住"              #依需求文字新增
+
+font:
+  - file:
+      type: gfonts
+      family: Noto Sans TC
+    id: font_cn_20
+    size: 20
+    glyphs: 
+      - ${allowed_characters}
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: font_icon_26
+    size: 26
+    glyphs: [
+      "\U000f06e9", # light
+      "\U000f033e", # lock
+      "\U000f06a5", # plug
+    ]
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 110ms  # 稍微拉長，給 CPU 喘息空間
+    window: 110ms
+    active: true
+
+bluetooth_proxy:
+  active: true        # 開啟主動發送功能
+
+#packages:
+#  audio: !include services/esp32-s3-box-3.yaml   #ha語音助手
+
+esphome:
+  name: esp32-s3-touch
+  friendly_name: esp32-s3-touch
+#   platformio_options:
+#     build_flags: "-DBOARD_HAS_PSRAM"
+#     board_build.arduino.memory_type: qio_opi
+esp32:
+  board: esp32s3box
+  flash_size: 16MB
+  cpu_frequency: 240MHz
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  reboot_timeout: 15min
+
+ota:
+  - platform: esphome
+
+wifi:
+  networks:
+  - ssid: "YuChen WIFI"
+    password: "1234567890"
+    priority: 10
+  - ssid: "YiFan WIFI"
+    password: "1234567890"
+    priority: 0
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-Tft-Display"
+    password: "1234567890"
+
+captive_portal:
+
+web_server:
+  port: 80
+  include_internal: true
+
+pca9554:
+  - id: pca9557_io
+    address: 0x19 # 設定PCA9557的I2C位址
+
+output:
+    # Backlight LED
+  - platform: ledc
+    pin: GPIO42
+    id: led_back_light
+    inverted: true
+    frequency: 1000Hz
+
+  - platform: gpio
+    id: lcd_cs
+    pin:
+      pca9554: pca9557_io
+      number: 0 # 對應PCA9557的IO0
+      mode: output
+      inverted: true
+
+  - platform: gpio
+    id: paen
+    pin:
+      pca9554: pca9557_io
+      number: 1 # 對應PCA9557的IO1
+      mode: output
+      inverted: true   
+light:
+  - platform: monochromatic
+    output: led_back_light
+    name: Backlight
+    id: backlight
+    restore_mode: ALWAYS_ON
+
+globals:
+  - id: backlight_dimmed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+i2c:
+  scl: GPIO2
+  sda: GPIO1
+  scan: true
+
+spi:
+- id: tft_spi
+  clk_pin: GPIO41
+  mosi_pin: GPIO40
+  # miso_pin: 5 
+#- id: touch_spi
+#  clk_pin: 25
+#  mosi_pin: 32
+#  miso_pin: 35
+
+display:
+  - platform: mipi_spi
+    id: my_display
+    model: st7789v
+    spi_id: tft_spi
+    dc_pin: GPIO39
+  #  cs_pin: 4
+  #  reset_pin: 15
+    invert_colors: true
+    show_test_card: false
+    update_interval: never
+    auto_clear_enabled: false
+    #rotation: 90
+    transform:
+      swap_xy: True
+      mirror_x: True
+      mirror_y: False
+    dimensions:
+      height: 240
+      width: 320
+
+touchscreen:
+  platform: ft63x6
+  id: tft_touchscreen
+#  spi_id: touch_spi
+#  cs_pin: 33
+#  interrupt_pin: 34
+  calibration:
+    x_min: 0
+    x_max: 320
+    y_min: 0
+    y_max: 240
+  transform:
+#    mirror_x: true
+    mirror_y: true
+    swap_xy: true
+#  on_touch:
+#    - lambda: |-
+#          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+#              touch.x,
+#              touch.y,
+#              touch.x_raw,
+#              touch.y_raw
+#              );
+#  on_touch:
+#    - if:
+#        condition:
+#          lambda: 'return id(backlight_dimmed);'
+#        then:
+#          - light.turn_on:
+#              id: backlight
+#              brightness: 100%   # 恢復亮度
+#          - lambda: |-
+#              id(backlight_dimmed) = false;
+#          - lvgl.resume:   # 若之前有 lvgl.pause，可解除暫停刷新
+#          - logger.log: "螢幕被喚醒，亮度恢復 100%"       
+
+text_sensor:
+#################################右上相關################################
+  - platform: homeassistant
+    id: lock_state_raw
+    entity_id: lock.lock_77a6
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(lock_state_raw).state == "locked";'
+            then:
+              - lvgl.widget.update:
+                  id: lv_button_top_right
+                  bg_color: 0x313131
+                  checked:
+                    bg_color: 0xCC5E14
+                  state:
+                    checked: true
+              - script.execute:
+                  id: top_label_msg
+                  text: "上鎖完成"
+        - if:
+            condition:
+              lambda: 'return id(lock_state_raw).state == "unlocked";'
+            then:
+              - lvgl.widget.update:
+                  id: lv_button_top_right
+                  bg_color: 0x313131
+                  checked:
+                    bg_color: 0xCC5E14
+                  state:
+                    checked: false
+              - script.execute:
+                  id: top_label_msg
+                  text: "解鎖完成"
+        - if:
+            condition:
+              or:
+                - lambda: 'return id(lock_state_raw).state == "locking";'
+                - lambda: 'return id(lock_state_raw).state == "unlocking";'
+            then:
+              - lvgl.widget.update:
+                  id: lv_button_top_right  
+                  bg_color: 0x50c878
+                  checked:
+                    bg_color: 0x50c878
+              - script.execute:
+                  id: top_label_msg
+                  text: "轉動中"              
+        - if:
+            condition:
+                - lambda: 'return id(lock_state_raw).state == "jammed";'
+            then:
+              - lvgl.widget.update:
+                  id: lv_button_top_right
+                  bg_color: 0x800000
+                  checked:
+                    bg_color: 0x800000
+              - script.execute:
+                  id: top_label_msg
+                  text: "已卡住"
+binary_sensor:
+#################################左上相關################################
+  - platform: homeassistant
+    id: ha_top_left
+    entity_id: ${top_left_entity_id} 
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lv_button_top_left
+            state:
+              checked: !lambda return x;
+
+#################################左下相關################################
+  - platform: homeassistant
+    id: ha_bottom_left
+    entity_id: ${bottom_left_entity_id} 
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lv_button_bottom_left
+            state:
+              checked: !lambda return x;   
+################################右下相關################################
+  - platform: homeassistant
+    id: ha_bottom_right
+    entity_id: ${bottom_right_entity_id} 
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lv_button_bottom_right
+            state:
+              checked: !lambda return x;  
+sensor:
+  #Internal RAM (DRAM / IRAM)
+  - platform: template
+    name: "Free Internal RAM"
+    unit_of_measurement: "bytes"
+    update_interval: 60s
+    lambda: |-
+      #include "esp_heap_caps.h"
+      return heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+
+  #PSRAM
+  - platform: template
+    name: "Free PSRAM"
+    unit_of_measurement: "bytes"
+    update_interval: 60s
+    lambda: |-
+      #include "esp_heap_caps.h"
+      return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
+  #Total RAM (Internal + PSRAM)
+  - platform: template
+    name: "Free Total RAM"
+    unit_of_measurement: "bytes"
+    update_interval: 60s
+    lambda: |-
+      #include "esp_heap_caps.h"
+      size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+      size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+      return internal_free + psram_free;
+
+
+lvgl:
+  buffer_size: 100%
+  color_depth: 16
+  bg_color: black
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  default_font: font_cn_20
+  displays:
+    - my_display
+  touchscreens:
+    - tft_touchscreen
+  theme:
+    button:
+      text_font: font_cn_20
+      scroll_on_focus: true
+      # group: general
+      radius: 15
+      width: 85
+      height: 85
+      pad_left: 10px
+      pad_top: 10px
+      pad_bottom: 10px
+      pad_right: 10px
+      shadow_width: 0
+      bg_color: 0x313131
+      text_color: 0xd9d9d9
+      checked:
+        bg_color: 0xCC5E14
+        text_color: 0xFFA500
+  on_idle:
+    timeout: 30000ms   # 閒置 30 秒
+    then:
+      - script.execute:
+          id: light_down_tft
+  page_wrap: true
+##############################################################################################待機頁##########################################################################################################
+  top_layer:
+    widgets:
+      - obj:
+          id: idle_page
+          bg_color: 0x000000
+          bg_opa: 0
+          width: 320
+          height: 240
+          on_click:
+            - script.execute:
+                id: light_up_tft            
+##############################################################################################主頁##########################################################################################################
+  pages:
+    - id: main_page
+      widgets:
+########################################################################################提示框##############################################################################################################
+        - label:
+            text_font: font_cn_20
+            id: top_label
+            text: "等待開機"
+            align: TOP_LEFT
+            bg_color: 0x303030
+            text_color: 0xFFFFFF
+            width: 310
+            height: 35
+            x: 5
+            y: 5
+            border_width: 2
+            border_color: 0x505050
+            radius: 10 
+        - obj:
+            align: TOP_LEFT
+            width: 310
+            height: 200
+            x: 10
+            y: 40
+            # pad_all: 3
+            bg_opa: TRANSP
+            border_opa: TRANSP  #cover #TRANSP
+            layout:
+              type: flex
+              flex_flow: column_wrap
+              # flex_align_cross: CENTER # they sould be centered
+            bg_color: 0x000000
+            # bg_opa: cover
+            pad_all: 2
+            widgets:
+#############################################################################################左上########################################################################################################
+              - button:
+                  height: 90
+                  width: 145
+                  checkable: true
+                  id: lv_button_top_left
+                  widgets:
+                    - label:
+                        text_font: font_icon_26
+                        align: top_left
+                        text: ${top_left_icon}    #light
+                        id: lv_button_top_left_icon
+                    - label:
+                        text_font: font_cn_20
+                        align: bottom_right
+                        text: "客廳主燈"
+                        long_mode: dot
+                  on_click:
+                  - homeassistant.action:
+                      action: ${top_left_action}
+                      data:
+                        entity_id: ${top_left_entity_id}
+#############################################################################################左下########################################################################################################
+              - button:
+                  height: 90
+                  width: 145
+                  checkable: true
+                  id: lv_button_bottom_left
+                  widgets:
+                    - label:
+                        text_font: font_icon_26
+                        align: top_left
+                        text: ${bottom_left_icon}     #light
+                        id: lv_button_bottom_left_icon
+                    - label:
+                        text_font: font_cn_20
+                        align: bottom_right
+                        text: "玄關燈"
+                        long_mode: dot
+                  on_click:
+                  - homeassistant.action:
+                      action: ${bottom_left_action}
+                      data:
+                        entity_id: ${bottom_left_entity_id}
+#############################################################################################右上########################################################################################################
+              - button:
+                  height: 90
+                  width: 145
+                  checkable: true
+                  id: lv_button_top_right
+                  widgets:
+                    - label:
+                        text_font: font_icon_26
+                        align: top_left
+                        text: ${top_right_icon}     #lock
+                        id: lv_button_top_right_icon
+                    - label:
+                        text_font: font_cn_20
+                        align: bottom_right
+                        text: "樓上大門"
+                        long_mode: dot
+                  on_click:
+                    - if:
+                        condition:
+                          lambda: 'return id(lock_state_raw).state == "locked";'
+                        then: 
+                          - homeassistant.action:
+                              action: lock.unlock
+                              data:
+                                entity_id: ${top_right_entity_id}
+                    - if:
+                        condition:
+                          lambda: 'return id(lock_state_raw).state == "unlocked";'
+                        then: 
+                          - homeassistant.action:
+                              action: lock.lock
+                              data:
+                                entity_id: ${top_right_entity_id}                                
+#############################################################################################右下########################################################################################################
+              - button:
+                  height: 90
+                  width: 145
+                  checkable: true
+                  id: lv_button_bottom_right
+                  widgets:
+                    - label:
+                        text_font: font_icon_26
+                        align: top_left
+                        text: ${bottom_right_icon}     #lock
+                        id: lv_button_bottom_right_icon
+                    - label:
+                        text_font: font_cn_20
+                        align: bottom_right
+                        text: "樓下大門"
+                        long_mode: dot
+                  on_click:
+                    - homeassistant.action:
+                        action: ${bottom_right_action}
+                        data:
+                          entity_id: ${bottom_right_entity_id}
+###########################################################################################script######################################################################################
+script:
+  # top_lable顯示訊息
+  - id: top_label_msg
+    parameters:
+      text: string
+    then:
+      - if:
+          condition:
+            lambda: 'return id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: backlight
+                brightness: 100%   # 恢復亮度
+            - lambda: |-
+                id(backlight_dimmed) = false;
+      - lvgl.label.update:
+          id: top_label
+          text: !lambda 'return text;' 
+      - lvgl.resume:   
+    # 點亮螢幕，取消待機      
+  - id: light_up_tft
+    then:
+      - lvgl.widget.hide: idle_page
+      - lvgl.page.show: main_page
+      - if:
+          condition:
+            lambda: 'return id(backlight_dimmed);'
+          then:
+ 
+            - light.turn_on:
+                id: backlight
+                brightness: 100%   # 恢復亮度
+            - lambda: |-
+                id(backlight_dimmed) = false;
+            - logger.log: "螢幕被喚醒，亮度恢復 100"
+            - lvgl.resume:     
+    # 螢幕變暗，進入待機      
+  - id: light_down_tft
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: backlight
+                brightness: 30%   # 降亮
+            - lvgl.widget.show: idle_page    
+            - lambda: |-
+                id(backlight_dimmed) = true;
+            - logger.log: "螢幕閒置 30 秒，亮度降至 30"  # on_idle:
