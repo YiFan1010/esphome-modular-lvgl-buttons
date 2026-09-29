@@ -1,0 +1,176 @@
+substitutions:
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+
+esphome:
+  name: office-panel
+  name_add_mac_suffix: false
+  friendly_name: Office Panel
+
+  on_boot:
+    - priority: 400
+      then:
+        - script.execute: update_loading_page
+          
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 110ms
+    window: 110ms
+    active: true
+
+bluetooth_proxy:
+  active: true        # 開啟主動發送功能
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+# -------------------------------------------------------------------
+# 3. WireGuard VPN 配置（補上異地連線 HA）
+# -------------------------------------------------------------------
+time:
+  - platform: sntp
+    id: sntp_time
+    # 台灣/北京時間時區設定 (UTC+8)
+    timezone: "CST-8"
+    servers:
+      - "0.pool.ntp.org"
+      - "1.pool.ntp.org"
+wireguard:
+  address: 10.1.1.15
+  private_key: "MFY3/9H7d2YLORD9htoHi0RnPczBzlDcGrbP1Nx6AHw="
+  peer_endpoint: "yifan.tplinkdns.com"
+  peer_port: 51820
+  peer_public_key: "k4bkjdJ9vnDkYkZLPUurrI07ZUC1AqZOOaI1P27dChQ="
+  peer_allowed_ips:
+    - 0.0.0.0/0
+  peer_persistent_keepalive: 25s
+    
+psram:
+  mode: octal
+  
+logger:
+
+api:
+  reboot_timeout: 3min
+ota:
+
+captive_portal:
+
+packages:
+  
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota_320240.yaml
+
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+
+#  backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
+
+  hardware: !include esphome-modular-lvgl-buttons/hardware/esp32-s3_320240.yaml
+
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading_320240.yaml
+
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info_320240.yaml
+########################建立各按鈕的樣式跟設定####################################
+  btn_00: !include
+    file: esphome-modular-lvgl-buttons/ui/lock/remote_1x1.yaml
+    vars:
+      uid: lock_8ab7
+      entity_id: "lock.lock_8ab7"
+      row: 0
+      column: 0
+      icon_font: mdi_icons_160
+      text: "大門"
+      icon_locked: $mdi_lock
+      icon_unlocked: $mdi_lock_open
+
+#################首頁的文字#######################################
+font:
+  - file:
+      type: gfonts
+      family: Noto Sans TC
+    id: font_cn
+    size: 54
+    glyphs: "大門"
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_160
+    size: 160
+    bpp: 8
+
+    glyphs:
+      # Required by light detail page
+      - $mdi_lock_open
+      - $mdi_lock
+      - $mdi_alert_circle
+      - $mdi_chevron_left        
+lvgl:
+  buffer_size: 100%
+  on_idle:
+    timeout: 30000ms   # 閒置 30 秒
+    then:
+      - script.execute:
+          id: light_down_tft 
+  top_layer:
+    widgets:
+      - obj:
+          id: idle_page
+          bg_color: 0x000000
+          bg_opa: 0
+          width: 320
+          height: 240
+          on_click:
+            - script.execute:
+                id: light_up_tft  
+  pages:
+    - id: main_page
+      layout: 1x1
+      styles: page_style
+
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+script:
+  - id: time_update
+    then:
+      - lambda: return;  
+        
+  - id: light_down_tft
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 30%   # 降亮
+            - lvgl.page.show: main_page
+            - lvgl.widget.show: idle_page    
+            - lambda: |-
+                id(backlight_dimmed) = true;
+            - logger.log: "螢幕閒置 30 秒，亮度降至 30"  # on_idle:
+  - id: light_up_tft
+    then:
+      - lvgl.widget.hide: idle_page
+      - lvgl.page.show: main_page
+      - if:
+          condition:
+            lambda: 'return id(backlight_dimmed);'
+          then:
+ 
+            - light.turn_on:
+                id: display_backlight
+                brightness: 100%   # 恢復亮度
+            - lambda: |-
+                id(backlight_dimmed) = false;
+            - logger.log: "螢幕被喚醒，亮度恢復 100"
+            - lvgl.resume:     
+    # 螢幕變暗，進入待機      
+
+        

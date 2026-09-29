@@ -1,0 +1,188 @@
+substitutions:
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+
+esphome:
+  name: esp32-32e-320240
+  name_add_mac_suffix: false
+  friendly_name: ESP32-32E-320240
+
+  on_boot:
+    - priority: 400
+      then:
+        - script.execute: update_loading_page
+          
+#esp32_ble_tracker:
+#  scan_parameters:
+#    interval: 110ms
+#    window: 110ms
+#    active: true
+
+#bluetooth_proxy:
+#  active: true        # 開啟主動發送功能
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+
+ota:
+
+captive_portal:
+
+packages:
+  
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota_320240.yaml
+
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+
+#  backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
+
+  hardware: !include esphome-modular-lvgl-buttons/hardware/esp32-32e_320240.yaml
+
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading_320240.yaml
+
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info_320240.yaml
+
+  btn_00: !include
+    file: esphome-modular-lvgl-buttons/ui/lock/remote_320240.yaml
+    vars:
+      uid: lock_77a6
+      entity_id: "lock.lock_77a6"
+      row: 0
+      column: 0
+      text: "樓上大門"
+      icon_locked: $mdi_lock
+      icon_unlocked: $mdi_lock_open
+#    file: esphome-modular-lvgl-buttons/ui/light/remote_320240.yaml
+#    vars:
+#      uid: yeelight_lamp1_966e_light
+#      entity_id: "light.yeelight_lamp1_966e_light"
+#      row: 0
+#      column: 0
+#      text: "小米檯燈"
+#      icon: $mdi_desk_lamp
+
+  btn_10: !include
+#    file: esphome-modular-lvgl-buttons/ui/switch/remotelock_320240.yaml
+#    vars:
+#      uid: front_door_controller_da_men_jie_suo
+#      entity_id: "switch.front_door_controller_da_men_jie_suo"
+#      row: 1
+#      column: 0
+#      text: "樓下大門"
+#      icon: $mdi_lock
+#      camera_src: "IPC14CH"
+#      go2rtc_host:  "192.168.68.200:1984"
+    file: esphome-modular-lvgl-buttons/ui/light/remote_320240.yaml
+    vars:
+      uid: yeelink_ceil34_ee0b_light
+      entity_id: "light.yeelink_ceil34_ee0b_light"
+      row: 1
+      column: 0
+      text: "臥室主燈"
+      icon: $mdi_ceiling_light
+
+  btn_01: !include
+    file: esphome-modular-lvgl-buttons/ui/climate/remote_320240.yaml
+    vars:
+      uid: daikin_ac_577888_daikin_ac
+      entity_id: "climate.daikin_ac_577888_daikin_ac"
+      row: 0
+      column: 1
+      text: "臥室空調"
+      icon: $mdi_air_conditioner
+      
+  btn_11: !include
+    file: esphome-modular-lvgl-buttons/ui/switch/remote_320240.yaml
+    vars:
+      uid: dian_nao_ying_mu
+      entity_id: "switch.dian_nao_ying_mu"
+      row: 1
+      column: 1
+      text: "電腦螢幕"
+      icon: $mdi_power_plug
+
+lvgl:
+  buffer_size: 10%
+  on_idle:
+    timeout: 30000ms   # 閒置 30 秒
+    then:
+      - script.execute:
+          id: light_down_tft 
+  top_layer:
+    widgets:
+      - obj:
+          id: idle_page
+          bg_color: 0x000000
+          bg_opa: 0
+          width: 320
+          height: 240
+          on_click:
+            - script.execute:
+                id: light_up_tft  
+  pages:
+    - id: main_page
+      layout: 2x2
+      styles: page_style
+
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+###########################首頁文字設定##############################################
+font:
+  - file:
+      type: gfonts
+      family: Noto Sans TC
+    id: font_cn
+    size: 20
+    glyphs: "臥室主燈小米檯電腦螢幕空調樓下上大門"
+             
+script:
+  - id: time_update
+    then:
+      - lambda: return;  
+        
+  - id: light_down_tft
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 30%   # 降亮
+            - lvgl.page.show: main_page
+            - lvgl.widget.show: idle_page    
+            - lambda: |-
+                id(backlight_dimmed) = true;
+            - logger.log: "螢幕閒置 30 秒，亮度降至 30"  # on_idle:
+  - id: light_up_tft
+    then:
+      - lvgl.widget.hide: idle_page
+      - lvgl.page.show: main_page
+      - if:
+          condition:
+            lambda: 'return id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 100%   # 恢復亮度
+            - lambda: |-
+                id(backlight_dimmed) = false;
+            - logger.log: "螢幕被喚醒，亮度恢復 100"
+            - lvgl.resume:     
+    # 螢幕變暗，進入待機      
+
+        
