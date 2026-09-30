@@ -81,7 +81,7 @@ lvgl:
                   animation: MOVE_LEFT
                   time: 300ms
 
-# ── HA state sensors ──────────────────────────────────────────────────────────
+# ── HA state sensors ────────────────────────────────────────────────────────
 
 binary_sensor:
 - id: ${uid}_ha_state
@@ -172,6 +172,33 @@ text_sensor:
                                        x.find("brightness") != std::string::npos;
   - script.execute: ${uid}_update_visibility
 
+# Effect list — detect if light supports effects and which ones
+- id: ${uid}_ha_effect_list
+  platform: homeassistant
+  entity_id: ${entity_id}
+  attribute: effect_list
+  internal: true
+  on_value:
+  - lambda: |-
+      id(${uid}_supports_effect) = !x.empty() && x != "None";
+      id(${uid}_supports_day_effect) = x.find("day") != std::string::npos ||
+                                       x.find("Day") != std::string::npos ||
+                                       x.find("DAY") != std::string::npos;
+      id(${uid}_supports_night_effect) = x.find("night") != std::string::npos ||
+                                         x.find("Night") != std::string::npos ||
+                                         x.find("NIGHT") != std::string::npos;
+  - script.execute: ${uid}_update_visibility
+
+# Current effect name
+- id: ${uid}_ha_effect
+  platform: homeassistant
+  entity_id: ${entity_id}
+  attribute: effect
+  internal: true
+  on_value:
+  - lambda: id(${uid}_current_effect) = x;
+  - script.execute: ${uid}_update_visibility
+
 script:
 # ── Abstract action scripts — REMOTE implementation ───────────────────────────
 
@@ -209,3 +236,20 @@ script:
       data:
         entity_id: ${entity_id}
         color_temp_kelvin: !lambda return (int)id(${uid}_current_color_temp);
+
+# Effect control scripts
+- id: ${uid}_light_apply_effect_day
+  then:
+  - homeassistant.action:
+      action: light.turn_on
+      data:
+        entity_id: ${entity_id}
+        effect: "day"
+
+- id: ${uid}_light_apply_effect_night
+  then:
+  - homeassistant.action:
+      action: light.turn_on
+      data:
+        entity_id: ${entity_id}
+        effect: "night"
