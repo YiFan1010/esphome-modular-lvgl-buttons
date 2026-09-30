@@ -1,5 +1,5 @@
 ---
-# Shared light detail page — RGB / CCT / brightness UI
+# Shared light detail page — RGB / CCT / brightness / effect UI
 # Calls abstract scripts defined by the button that includes this page.
 # Works identically for both local ESPHome lights and remote HA lights.
 #
@@ -9,22 +9,31 @@
 #   page_id:  parent page to return to (default: main_page)
 #
 # Scripts the button MUST define:
-#   ${uid}_light_toggle           — toggle the light on/off
-#   ${uid}_light_set_brightness   — apply id(${uid}_current_brightness) [0.0–1.0]
-#   ${uid}_light_apply_hs         — apply id(${uid}_current_hue) [0–360] + id(${uid}_current_saturation) [0–100]
-#   ${uid}_light_apply_color_temp — apply id(${uid}_current_color_temp) [Kelvin]
+#   ${uid}_light_toggle             — toggle the light on/off
+#   ${uid}_light_set_brightness     — apply id(${uid}_current_brightness) [0.0–1.0]
+#   ${uid}_light_apply_hs           — apply id(${uid}_current_hue) [0–360] + id(${uid}_current_saturation) [0–100]
+#   ${uid}_light_apply_color_temp   — apply id(${uid}_current_color_temp) [Kelvin]
+#   ${uid}_light_apply_effect_day   — apply effect "day" if supported
+#   ${uid}_light_apply_effect_night — apply effect "night" if supported
 #
 # Globals the button MUST keep up-to-date:
-#   ${uid}_is_on              bool
-#   ${uid}_current_brightness float  0.0–1.0
-#   ${uid}_current_hue        float  0–360
-#   ${uid}_current_saturation float  0–100
-#   ${uid}_current_color_temp float  Kelvin
-#   ${uid}_supports_rgb       bool
-#   ${uid}_supports_color_temp bool
-#   ${uid}_supports_brightness bool
+#   ${uid}_is_on                   bool
+#   ${uid}_current_brightness      float  0.0–1.0
+#   ${uid}_current_hue             float  0–360
+#   ${uid}_current_saturation      float  0–100
+#   ${uid}_current_color_temp      float  Kelvin
+#   ${uid}_current_effect          string current effect name
+#   ${uid}_supports_rgb            bool
+#   ${uid}_supports_color_temp     bool
+#   ${uid}_supports_brightness      bool
+#   ${uid}_supports_effect          bool
+#   ${uid}_supports_day_effect      bool
+#   ${uid}_supports_night_effect    bool
 
 globals:
+# ──────────────────────────────────────────────────────────────────────────────
+# Light state and current values
+# ──────────────────────────────────────────────────────────────────────────────
 - id: ${uid}_current_hue
   type: float
   initial_value: '0.0'
@@ -41,10 +50,17 @@ globals:
   type: float
   initial_value: '4000.0'
 
+- id: ${uid}_current_effect
+  type: std::string
+  initial_value: '""'
+
 - id: ${uid}_is_temp_mode
   type: bool
   initial_value: 'false'
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Capability flags detected from Home Assistant supported_color_modes / effect_list
+# ──────────────────────────────────────────────────────────────────────────────
 - id: ${uid}_supports_rgb
   type: bool
   initial_value: 'false'
@@ -54,6 +70,18 @@ globals:
   initial_value: 'false'
 
 - id: ${uid}_supports_brightness
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_effect
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_day_effect
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_night_effect
   type: bool
   initial_value: 'false'
 
@@ -96,16 +124,19 @@ lvgl:
       position: 255
 
   pages:
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────────
   # DETAIL PAGE
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────────
   - id: ${uid}_light_page
     styles: page_style
     scrollable: false
     scrollbar_mode: "OFF"
     widgets:
 
+    # -------------------------------------------------------------------------
     # BRIGHTNESS SLIDER
+    # This is shown whenever the light supports brightness.
+    # -------------------------------------------------------------------------
     - obj:
         id: ${uid}_brightness_bg
         x: 10
@@ -145,7 +176,10 @@ lvgl:
             text: $mdi_brightness_6
             text_color: white
 
+    # -------------------------------------------------------------------------
     # SATURATION SLIDER
+    # Only visible in RGB/HS mode.
+    # -------------------------------------------------------------------------
     - obj:
         id: ${uid}_saturation_bg
         x: 58
@@ -185,7 +219,62 @@ lvgl:
             text: $mdi_circle_opacity
             text_color: white
 
+    # -------------------------------------------------------------------------
+    # EFFECT BUTTON GROUP
+    # This block is hidden unless the light supports effects.
+    # It automatically shows Day / Night buttons only when those effects exist.
+    # -------------------------------------------------------------------------
+    - obj:
+        id: ${uid}_effect_bg
+        hidden: true
+        x: 10
+        y: 185
+        width: 120
+        height: 58
+        align: left_mid
+        bg_opa: transp
+        border_opa: transp
+        widgets:
+        - button:
+            id: ${uid}_day_btn
+            hidden: true
+            width: 48
+            height: 38
+            align: left_mid
+            radius: 8
+            bg_color: $button_off_color
+            border_width: 1
+            border_color: $label_off_color
+            on_click:
+            - script.execute: ${uid}_light_apply_effect_day
+            widgets:
+            - label:
+                align: center
+                text_font: $title_font
+                text_color: $label_on_color
+                text: "DAY"
+        - button:
+            id: ${uid}_night_btn
+            hidden: true
+            width: 48
+            height: 38
+            align: right_mid
+            radius: 8
+            bg_color: $button_off_color
+            border_width: 1
+            border_color: $label_off_color
+            on_click:
+            - script.execute: ${uid}_light_apply_effect_night
+            widgets:
+            - label:
+                align: center
+                text_font: $title_font
+                text_color: $label_on_color
+                text: "NIGHT"
+
+    # -------------------------------------------------------------------------
     # LIGHT NAME LABEL
+    # -------------------------------------------------------------------------
     - label:
         id: ${uid}_detail_name_label
         y: 10
@@ -199,7 +288,11 @@ lvgl:
         text_color: misty_blue
         text: ${text}
 
+    # -------------------------------------------------------------------------
     # ARC BACKGROUND CONTAINER
+    # This large circular area is used by Hue / Color temperature modes.
+    # Depending on light capabilities it can show one or both arc controls.
+    # -------------------------------------------------------------------------
     - obj:
         id: ${uid}_arc_bg
         hidden: false
@@ -375,7 +468,10 @@ lvgl:
                 on_release:
                 - script.execute: ${uid}_light_apply_color_temp
 
+    # -------------------------------------------------------------------------
     # LIGHTBULB TOGGLE BUTTON
+    # This is the main power button; it toggles the light on/off.
+    # -------------------------------------------------------------------------
     - button:
         id: ${uid}_bulb_btn
         x: -20
@@ -400,7 +496,10 @@ lvgl:
             text_color: 0x888888
             text: $mdi_lightbulb
 
+    # -------------------------------------------------------------------------
     # BACK BUTTON
+    # Returns to parent page.
+    # -------------------------------------------------------------------------
     - obj:
         id: ${uid}_back_btn
         x: 110
@@ -439,12 +538,12 @@ lvgl:
             time: 300ms
 
 script:
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # Sync globals → LVGL widgets (called after any state change)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_sync_state
   then:
-  # Update grid button appearance
+  # Update the tile button appearance depending on whether the light is on or off.
   - if:
       condition:
         lambda: return id(${uid}_is_on);
@@ -477,12 +576,12 @@ script:
           knob:
             bg_color: $label_off_color
 
-  # Sync grid brightness slider
+  # Sync grid brightness slider with current brightness value.
   - lvgl.slider.update:
       id: slider_${uid}
       value: !lambda return id(${uid}_current_brightness) * 255;
 
-  # Sync detail page sliders/arcs
+  # Sync the detail page sliders / arcs.
   - lvgl.slider.update:
       id: ${uid}_brightness_slider
       value: !lambda return id(${uid}_current_brightness) * 255;
@@ -498,12 +597,12 @@ script:
 
   - script.execute: ${uid}_update_visibility
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # Show/hide detail page controls based on detected capabilities
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_update_visibility
   then:
-  # Brightness slider (detail page) + tile slider
+  # Brightness slider on detail page + tile slider.
   - if:
       condition:
         lambda: return id(${uid}_supports_brightness);
@@ -514,7 +613,7 @@ script:
       - lvgl.widget.hide: ${uid}_brightness_bg
       - lvgl.widget.hide: slider_${uid}
 
-  # Saturation + hue arc (RGB mode only)
+  # RGB / HS mode display.
   - if:
       condition:
         lambda: return id(${uid}_supports_rgb) && !id(${uid}_is_temp_mode);
@@ -532,7 +631,7 @@ script:
       - lvgl.widget.hide: ${uid}_hue_gradient_obj
       - lvgl.widget.hide: ${uid}_arc_hue
 
-  # Color temp arc (CCT mode only)
+  # Color temperature mode display.
   - if:
       condition:
         lambda: return id(${uid}_supports_color_temp) && id(${uid}_is_temp_mode);
@@ -548,7 +647,7 @@ script:
       - lvgl.widget.hide: ${uid}_color_temp_gradient_obj
       - lvgl.widget.hide: ${uid}_arc_color_temp
 
-  # Arc background — hide for brightness-only lights
+  # Arc background visibility: hide for brightness-only lights.
   - if:
       condition:
         lambda: return id(${uid}_supports_rgb) || id(${uid}_supports_color_temp);
@@ -557,7 +656,7 @@ script:
       else:
       - lvgl.widget.hide: ${uid}_arc_bg
 
-  # Auto-select CCT mode if that's the only color capability
+  # Auto-select CCT mode if that is the only supported color capability.
   - if:
       condition:
         lambda: return !id(${uid}_supports_rgb) && id(${uid}_supports_color_temp);
@@ -565,9 +664,79 @@ script:
       - lambda: id(${uid}_is_temp_mode) = true;
       - script.execute: ${uid}_update_visibility
 
-# ═══════════════════════════════════════════════════════════════════════════════
+  # Effect UI visibility.
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_effect);
+      then:
+      - lvgl.widget.show: ${uid}_effect_bg
+      - if:
+          condition:
+            lambda: return id(${uid}_supports_day_effect);
+          then:
+          - lvgl.widget.show: ${uid}_day_btn
+          else:
+          - lvgl.widget.hide: ${uid}_day_btn
+      - if:
+          condition:
+            lambda: return id(${uid}_supports_night_effect);
+          then:
+          - lvgl.widget.show: ${uid}_night_btn
+          else:
+          - lvgl.widget.hide: ${uid}_night_btn
+      else:
+      - lvgl.widget.hide: ${uid}_effect_bg
+      - lvgl.widget.hide: ${uid}_day_btn
+      - lvgl.widget.hide: ${uid}_night_btn
+
+  - script.execute: ${uid}_update_effect_buttons
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Update effect button color based on active effect state.
+# ════════════════════════════════════════════════════════════════════════════════
+- id: ${uid}_update_effect_buttons
+  then:
+  # Day button: highlight when current effect == "day"
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_day_effect);
+      then:
+      - if:
+          condition:
+            lambda: return id(${uid}_current_effect) == "day";
+          then:
+          - lvgl.widget.update:
+              id: ${uid}_day_btn
+              bg_color: $button_on_color
+              border_color: $label_on_color
+          else:
+          - lvgl.widget.update:
+              id: ${uid}_day_btn
+              bg_color: $button_off_color
+              border_color: $label_off_color
+
+  # Night button: highlight when current effect == "night"
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_night_effect);
+      then:
+      - if:
+          condition:
+            lambda: return id(${uid}_current_effect) == "night";
+          then:
+          - lvgl.widget.update:
+              id: ${uid}_night_btn
+              bg_color: $button_on_color
+              border_color: $label_on_color
+          else:
+          - lvgl.widget.update:
+              id: ${uid}_night_btn
+              bg_color: $button_off_color
+              border_color: $label_off_color
+
+# ════════════════════════════════════════════════════════════════════════════════
 # Toggle RGB ↔ CCT mode (called on long press of bulb button)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_toggle_color_mode
   then:
   - if:
@@ -577,9 +746,9 @@ script:
       - lambda: id(${uid}_is_temp_mode) = !id(${uid}_is_temp_mode);
       - script.execute: ${uid}_update_visibility
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # Update bulb icon glow color from current light state
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_update_bulb_color
   then:
   - lambda: |-
@@ -617,11 +786,11 @@ script:
           b = std::max(0, std::min(255, (int)bf));
 
         } else {
-          // Brightness-only → warm yellow
+          // Brightness-only / effect-only light → warm yellow
           r = 255; g = 220; b = 50;
         }
 
-        // Scale by brightness (60%–100% range for visibility)
+        // Scale by brightness for a better on-screen glow.
         float bd = 0.6f + (id(${uid}_current_brightness) * 0.4f);
         r = (int)(r * bd);
         g = (int)(g * bd);
