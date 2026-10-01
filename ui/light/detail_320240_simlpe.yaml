@@ -1,35 +1,36 @@
 ---
 # Simplified light detail page — Brightness / CCT / RGB / Effect UI
-# Designed for easy control with mode selection buttons and dynamic content area
 #
-# vars:
-#   uid:      must match the including button's uid
-#   text:     light name shown on the detail page header
-#   page_id:  parent page to return to (default: main_page)
+# This is the detail page used by remote lights when the main screen button is long-pressed.
+# It keeps the interface simple while still supporting the main light control modes:
+#  - brightness
+#  - color temperature
+#  - rgb color selection
+#  - effect selection
 #
-# Scripts the button MUST define:
-#   ${uid}_light_toggle             — toggle the light on/off
-#   ${uid}_light_set_brightness     — apply id(${uid}_current_brightness) [0.0–1.0]
-#   ${uid}_light_apply_color_temp   — apply id(${uid}_current_color_temp) [Kelvin]
-#   ${uid}_light_apply_hs           — apply id(${uid}_current_hue) [0–360] + id(${uid}_current_saturation) [0–100]
-#   ${uid}_light_apply_effect_*     — apply effect (e.g., day, night, etc.)
+# The remote side must provide the following scripts:
+#  - ${uid}_light_toggle
+#  - ${uid}_light_set_brightness
+#  - ${uid}_light_apply_color_temp
+#  - ${uid}_light_apply_hs
+#  - ${uid}_light_apply_effect_day
+#  - ${uid}_light_apply_effect_night
 #
-# Globals the button MUST keep up-to-date:
-#   ${uid}_is_on                   bool
-#   ${uid}_current_brightness      float  0.0–1.0
-#   ${uid}_current_color_temp      float  Kelvin
-#   ${uid}_current_hue             float  0–360
-#   ${uid}_current_saturation      float  0–100
-#   ${uid}_current_effect          string current effect name
-#   ${uid}_supports_brightness      bool
-#   ${uid}_supports_color_temp     bool
-#   ${uid}_supports_rgb             bool
-#   ${uid}_supports_effect          bool
+# Required globals:
+#  - ${uid}_is_on
+#  - ${uid}_current_brightness
+#  - ${uid}_current_color_temp
+#  - ${uid}_current_hue
+#  - ${uid}_current_saturation
+#  - ${uid}_current_effect
+#  - ${uid}_supports_brightness
+#  - ${uid}_supports_color_temp
+#  - ${uid}_supports_rgb
+#  - ${uid}_supports_effect
+#  - ${uid}_supports_day_effect
+#  - ${uid}_supports_night_effect
 
 globals:
-# ──────────────────────────────────────────────────────────────────────────────
-# Light state and current values
-# ──────────────────────────────────────────────────────────────────────────────
 - id: ${uid}_current_brightness
   type: float
   initial_value: '1.0'
@@ -50,17 +51,10 @@ globals:
   type: std::string
   initial_value: '""'
 
-# ──────────────────────────────────────────────────────────────────────────────
-# UI mode selection: which control is currently active
-# 0 = brightness, 1 = color_temp, 2 = rgb, 3 = effect
-# ──────────────────────────────────────────────────────────────────────────────
 - id: ${uid}_slider_mode
   type: int
-  initial_value: '0'
+  initial_value: '0'  # 0=brightness, 1=color_temp, 2=rgb, 3=effect
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Capability flags detected from Home Assistant
-# ──────────────────────────────────────────────────────────────────────────────
 - id: ${uid}_supports_brightness
   type: bool
   initial_value: 'false'
@@ -77,24 +71,27 @@ globals:
   type: bool
   initial_value: 'false'
 
+- id: ${uid}_supports_day_effect
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_night_effect
+  type: bool
+  initial_value: 'false'
+
 - id: ${uid}_is_on
   type: bool
   initial_value: 'false'
 
 lvgl:
   pages:
-  # ────────────────────────────────────────────────────────────────────────────
-  # SIMPLIFIED DETAIL PAGE WITH 4 MODES
-  # ────────────────────────────────────────────────────────────────────────────
   - id: ${uid}_light_page
     styles: page_style
     scrollable: false
     scrollbar_mode: "OFF"
     widgets:
 
-    # -------------------------------------------------------------------------
-    # HEADER: Light name + Return button
-    # -------------------------------------------------------------------------
+    # Header: name + back button
     - label:
         id: ${uid}_detail_name_label
         y: 5
@@ -130,9 +127,7 @@ lvgl:
             text_color: steel_blue
             text: $mdi_chevron_up
 
-    # -------------------------------------------------------------------------
-    # POWER TOGGLE BUTTON (center top)
-    # -------------------------------------------------------------------------
+    # Power toggle button in the middle top area
     - button:
         id: ${uid}_power_btn
         x: 0
@@ -152,9 +147,7 @@ lvgl:
             text_color: 0x888888
             text: $mdi_lightbulb
 
-    # -------------------------------------------------------------------------
-    # BRIGHTNESS SLIDER (shown in brightness mode)
-    # -------------------------------------------------------------------------
+    # Brightness slider
     - slider:
         id: ${uid}_brightness_slider
         x: 0
@@ -179,9 +172,7 @@ lvgl:
         on_release:
         - script.execute: ${uid}_light_set_brightness
 
-    # -------------------------------------------------------------------------
-    # COLOR TEMPERATURE SLIDER (shown in temp mode)
-    # -------------------------------------------------------------------------
+    # Color temperature slider
     - slider:
         id: ${uid}_temp_slider
         x: 0
@@ -206,9 +197,7 @@ lvgl:
         on_release:
         - script.execute: ${uid}_light_apply_color_temp
 
-    # -------------------------------------------------------------------------
-    # RGB COLOR GRID (shown in rgb mode) - 3x4 layout
-    # -------------------------------------------------------------------------
+    # 3x4 RGB color grid
     - obj:
         id: ${uid}_color_grid
         x: 0
@@ -227,7 +216,7 @@ lvgl:
           grid_cell_y_align: center
         pad_all: 2
         widgets:
-        # Row 1: Red, Orange, Yellow, Green
+
         - button:
             id: ${uid}_color_red
             width: 50
@@ -241,6 +230,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_orange
             width: 50
@@ -254,6 +244,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_yellow
             width: 50
@@ -267,6 +258,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_green
             width: 50
@@ -281,7 +273,6 @@ lvgl:
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
 
-        # Row 2: Blue, Purple, White, Cyan
         - button:
             id: ${uid}_color_blue
             width: 50
@@ -295,6 +286,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_purple
             width: 50
@@ -308,6 +300,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_white
             width: 50
@@ -321,6 +314,7 @@ lvgl:
                 id(${uid}_current_saturation) = 0;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_cyan
             width: 50
@@ -335,7 +329,6 @@ lvgl:
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
 
-        # Row 3: Pink, Dark Orange, Brown, Rainbow
         - button:
             id: ${uid}_color_pink
             width: 50
@@ -349,6 +342,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_darkorange
             width: 50
@@ -362,6 +356,7 @@ lvgl:
                 id(${uid}_current_saturation) = 100;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_brown
             width: 50
@@ -375,6 +370,7 @@ lvgl:
                 id(${uid}_current_saturation) = 75;
             - script.execute: ${uid}_light_apply_hs
             - script.execute: ${uid}_update_color_highlight
+
         - button:
             id: ${uid}_color_rainbow
             width: 50
@@ -385,9 +381,7 @@ lvgl:
             on_click:
             - script.execute: ${uid}_update_color_highlight
 
-    # -------------------------------------------------------------------------
-    # EFFECT SELECTION AREA (shown in effect mode)
-    # -------------------------------------------------------------------------
+    # Effect selection area
     - obj:
         id: ${uid}_effect_selection
         x: 0
@@ -405,7 +399,6 @@ lvgl:
         widgets:
         - button:
             id: ${uid}_effect_day_btn
-            hidden: true
             width: 130
             height: 28
             radius: 6
@@ -424,7 +417,6 @@ lvgl:
 
         - button:
             id: ${uid}_effect_night_btn
-            hidden: true
             width: 130
             height: 28
             radius: 6
@@ -441,9 +433,7 @@ lvgl:
                 text_color: $label_on_color
                 text: "☾ NIGHT"
 
-    # -------------------------------------------------------------------------
-    # MODE SELECTION BUTTONS (bottom)
-    # -------------------------------------------------------------------------
+    # Mode selection buttons at bottom
     - obj:
         id: ${uid}_mode_buttons_container
         x: 0
@@ -460,7 +450,6 @@ lvgl:
         pad_all: 2
         widgets:
 
-        # Brightness mode button
         - button:
             id: ${uid}_mode_brightness_btn
             width: 70
@@ -478,10 +467,8 @@ lvgl:
                 text_color: $label_on_color
                 text: "☀"
 
-        # Color temp mode button
         - button:
             id: ${uid}_mode_temp_btn
-            hidden: true
             width: 70
             height: 30
             radius: 6
@@ -497,10 +484,8 @@ lvgl:
                 text_color: $label_on_color
                 text: "◉"
 
-        # RGB mode button
         - button:
             id: ${uid}_mode_rgb_btn
-            hidden: true
             width: 70
             height: 30
             radius: 6
@@ -516,10 +501,8 @@ lvgl:
                 text_color: $label_on_color
                 text: "🌈"
 
-        # Effect mode button
         - button:
             id: ${uid}_mode_effect_btn
-            hidden: true
             width: 70
             height: 30
             radius: 6
@@ -536,9 +519,6 @@ lvgl:
                 text: "🌙"
 
 script:
-# ════════════════════════════════════════════════════════════════════════════════
-# Switch to brightness mode
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_switch_to_brightness
   then:
   - lambda: id(${uid}_slider_mode) = 0;
@@ -551,9 +531,6 @@ script:
       value: !lambda return id(${uid}_current_brightness) * 255;
   - script.execute: ${uid}_update_mode_buttons
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Switch to color temperature mode
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_switch_to_temp
   then:
   - lambda: id(${uid}_slider_mode) = 1;
@@ -566,9 +543,6 @@ script:
       value: !lambda return (int)id(${uid}_current_color_temp);
   - script.execute: ${uid}_update_mode_buttons
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Switch to RGB color mode
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_switch_to_rgb
   then:
   - lambda: id(${uid}_slider_mode) = 2;
@@ -579,9 +553,6 @@ script:
   - script.execute: ${uid}_update_mode_buttons
   - script.execute: ${uid}_update_color_highlight
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Switch to effect mode
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_switch_to_effect
   then:
   - lambda: id(${uid}_slider_mode) = 3;
@@ -592,12 +563,8 @@ script:
   - script.execute: ${uid}_update_mode_buttons
   - script.execute: ${uid}_update_effect_highlight
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Update mode button appearance (highlight active mode)
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_update_mode_buttons
   then:
-  # Brightness button
   - if:
       condition:
         lambda: return id(${uid}_slider_mode) == 0;
@@ -612,7 +579,6 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-  # Color temp button
   - if:
       condition:
         lambda: return id(${uid}_slider_mode) == 1;
@@ -627,7 +593,6 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-  # RGB button
   - if:
       condition:
         lambda: return id(${uid}_slider_mode) == 2;
@@ -642,7 +607,6 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-  # Effect button
   - if:
       condition:
         lambda: return id(${uid}_slider_mode) == 3;
@@ -657,21 +621,17 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Update color button highlight based on current hue/saturation
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_update_color_highlight
   then:
   - lambda: |-
       float h = id(${uid}_current_hue);
       float s = id(${uid}_current_saturation);
-      
-      // Reset all to off color
+
       auto reset_color = [](auto btn_id) {
         lv_obj_set_style_bg_color(id(btn_id), lv_color_hex(0x313131), 0);
         lv_obj_set_style_border_color(id(btn_id), lv_color_hex(0x666666), 0);
       };
-      
+
       reset_color(${uid}_color_red);
       reset_color(${uid}_color_orange);
       reset_color(${uid}_color_yellow);
@@ -683,32 +643,26 @@ script:
       reset_color(${uid}_color_pink);
       reset_color(${uid}_color_darkorange);
       reset_color(${uid}_color_brown);
-      
-      // Highlight matching color
+
       auto highlight_color = [](auto btn_id) {
         lv_obj_set_style_bg_color(id(btn_id), lv_color_hex(0xCC5E14), 0);
         lv_obj_set_style_border_color(id(btn_id), lv_color_hex(0xFFA500), 0);
       };
-      
-      // Check each color preset
-      if ((h >= 355 || h <= 5) && s >= 95) { highlight_color(${uid}_color_red); }
-      else if (h >= 25 && h <= 35 && s >= 95) { highlight_color(${uid}_color_orange); }
-      else if (h >= 55 && h <= 65 && s >= 95) { highlight_color(${uid}_color_yellow); }
-      else if (h >= 115 && h <= 125 && s >= 95) { highlight_color(${uid}_color_green); }
-      else if (h >= 235 && h <= 245 && s >= 95) { highlight_color(${uid}_color_blue); }
-      else if (h >= 295 && h <= 305 && s >= 95) { highlight_color(${uid}_color_purple); }
-      else if (s <= 5) { highlight_color(${uid}_color_white); }
-      else if (h >= 175 && h <= 185 && s >= 95) { highlight_color(${uid}_color_cyan); }
-      else if (h >= 320 && h <= 340 && s >= 95) { highlight_color(${uid}_color_pink); }
-      else if (h >= 15 && h <= 25 && s >= 95) { highlight_color(${uid}_color_darkorange); }
-      else if (h >= 20 && h <= 30 && s >= 70) { highlight_color(${uid}_color_brown); }
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Update effect button highlight based on current effect
-# ════════════════════════════════════════════════════════════════════════════════
+      if ((h >= 355 || h <= 5) && s >= 95) highlight_color(${uid}_color_red);
+      else if (h >= 25 && h <= 35 && s >= 95) highlight_color(${uid}_color_orange);
+      else if (h >= 55 && h <= 65 && s >= 95) highlight_color(${uid}_color_yellow);
+      else if (h >= 115 && h <= 125 && s >= 95) highlight_color(${uid}_color_green);
+      else if (h >= 235 && h <= 245 && s >= 95) highlight_color(${uid}_color_blue);
+      else if (h >= 295 && h <= 305 && s >= 95) highlight_color(${uid}_color_purple);
+      else if (s <= 5) highlight_color(${uid}_color_white);
+      else if (h >= 175 && h <= 185 && s >= 95) highlight_color(${uid}_color_cyan);
+      else if (h >= 320 && h <= 340 && s >= 95) highlight_color(${uid}_color_pink);
+      else if (h >= 15 && h <= 25 && s >= 95) highlight_color(${uid}_color_darkorange);
+      else if (h >= 20 && h <= 30 && s >= 70) highlight_color(${uid}_color_brown);
+
 - id: ${uid}_update_effect_highlight
   then:
-  # Day button highlight
   - if:
       condition:
         lambda: return id(${uid}_current_effect) == "day";
@@ -723,7 +677,6 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-  # Night button highlight
   - if:
       condition:
         lambda: return id(${uid}_current_effect) == "night";
@@ -738,32 +691,56 @@ script:
           bg_color: $button_off_color
           border_color: $label_off_color
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Initialize page based on light capabilities
-# ════════════════════════════════════════════════════════════════════════════════
 - id: ${uid}_init_page
   then:
-  # Show mode buttons based on light capabilities
   - if:
       condition:
         lambda: return id(${uid}_supports_color_temp);
       then:
       - lvgl.widget.show: ${uid}_mode_temp_btn
+      else:
+      - lvgl.widget.hide: ${uid}_mode_temp_btn
 
   - if:
       condition:
         lambda: return id(${uid}_supports_rgb);
       then:
       - lvgl.widget.show: ${uid}_mode_rgb_btn
+      else:
+      - lvgl.widget.hide: ${uid}_mode_rgb_btn
 
   - if:
       condition:
         lambda: return id(${uid}_supports_effect);
       then:
       - lvgl.widget.show: ${uid}_mode_effect_btn
-      # Show effect buttons
-      - lvgl.widget.show: ${uid}_effect_day_btn
-      - lvgl.widget.show: ${uid}_effect_night_btn
+      else:
+      - lvgl.widget.hide: ${uid}_mode_effect_btn
 
-  # Initialize to brightness mode
   - script.execute: ${uid}_switch_to_brightness
+
+# A lightweight sync helper so the power icon can reflect the lamp state.
+- id: ${uid}_sync_state
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_is_on);
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_power_icon
+          text_color: 0xFFCC00
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_power_icon
+          text_color: 0x888888
+
+- id: ${uid}_update_bulb_color
+  then:
+  - lambda: |-
+      if (id(${uid}_is_on)) {
+        lv_obj_set_style_text_color(id(${uid}_power_icon), lv_color_hex(0xFFCC00), 0);
+      } else {
+        lv_obj_set_style_text_color(id(${uid}_power_icon), lv_color_hex(0x888888), 0);
+      }
+
+

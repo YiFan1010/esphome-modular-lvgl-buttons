@@ -1,14 +1,21 @@
 ---
-# Remote light button — full RGB / CCT / brightness UI for Home Assistant lights
-# Capabilities are detected at runtime from the HA supported_color_modes attribute.
+# Remote light button — simple 4-mode Home Assistant light control UI.
+#
+# This version uses the simplified detail page:
+#   ui/light/detail_320240_simlpe.yaml
+#
+# The remote layer is responsible for:
+# - reading HA light state
+# - detecting support flags
+# - sending turn_on / turn_off / brightness / color_temp / hs / effect commands
 #
 # vars:
 #   uid:          unique identifier
-#   entity_id:    HA light entity (e.g. "light.kitchen")
+#   entity_id:    HA light entity (example: "light.kitchen")
 #   row:          grid row position
 #   column:       grid column position
 #   text:         label text
-#   icon:         icon glyph (optional, default: $mdi_lightbulb)
+#   icon:         icon glyph
 #   row_span:     (default: 1)
 #   column_span:  (default: 1)
 #   page_id:      parent page (default: main_page)
@@ -94,7 +101,7 @@ binary_sensor:
   - script.execute: ${uid}_update_bulb_color
 
 text_sensor:
-# Brightness (text sensor avoids NaN on lights that don't report it)
+# Brightness value from HA (some lights do not report this attribute)
 - id: ${uid}_ha_brightness
   platform: homeassistant
   entity_id: ${entity_id}
@@ -126,12 +133,12 @@ text_sensor:
         lambda: return !x.empty() && x != "None";
       then:
       - lambda: id(${uid}_current_color_temp) = atof(x.c_str());
-      - lvgl.arc.update:
-          id: ${uid}_arc_color_temp
+      - lvgl.slider.update:
+          id: ${uid}_temp_slider
           value: !lambda return (int)id(${uid}_current_color_temp);
       - script.execute: ${uid}_update_bulb_color
 
-# HS color — HA returns a tuple string like "(120.5, 80.0)"
+# HS color as a tuple string, e.g. "(120.5, 80.0)"
 - id: ${uid}_ha_hs_color
   platform: homeassistant
   entity_id: ${entity_id}
@@ -148,15 +155,10 @@ text_sensor:
             id(${uid}_current_hue) = atof(x.substr(0, comma).c_str());
             id(${uid}_current_saturation) = atof(x.substr(comma + 1).c_str());
           }
-      - lvgl.arc.update:
-          id: ${uid}_arc_hue
-          value: !lambda return (int)id(${uid}_current_hue);
-      - lvgl.slider.update:
-          id: ${uid}_saturation_slider
-          value: !lambda return (int)id(${uid}_current_saturation);
+      - script.execute: ${uid}_update_color_highlight
       - script.execute: ${uid}_update_bulb_color
 
-# Supported color modes → detect capabilities and update UI visibility
+# Supported color modes from HA
 - id: ${uid}_ha_supported_modes
   platform: homeassistant
   entity_id: ${entity_id}
@@ -165,14 +167,11 @@ text_sensor:
   on_value:
   - lambda: |-
       id(${uid}_supports_color_temp) = x.find("color_temp") != std::string::npos;
-      id(${uid}_supports_rgb)        = x.find("rgb") != std::string::npos ||
-                                       x.find("hs")  != std::string::npos;
-      id(${uid}_supports_brightness) = id(${uid}_supports_rgb) ||
-                                       id(${uid}_supports_color_temp) ||
-                                       x.find("brightness") != std::string::npos;
-  - script.execute: ${uid}_update_visibility
+      id(${uid}_supports_rgb) = x.find("rgb") != std::string::npos || x.find("hs") != std::string::npos;
+      id(${uid}_supports_brightness) = id(${uid}_supports_rgb) || id(${uid}_supports_color_temp) || x.find("brightness") != std::string::npos;
+  - script.execute: ${uid}_init_page
 
-# Effect list — detect if light supports effects and which ones
+# effect_list from HA: lists all supported effects (day/night etc)
 - id: ${uid}_ha_effect_list
   platform: homeassistant
   entity_id: ${entity_id}
@@ -181,15 +180,11 @@ text_sensor:
   on_value:
   - lambda: |-
       id(${uid}_supports_effect) = !x.empty() && x != "None";
-      id(${uid}_supports_day_effect) = x.find("day") != std::string::npos ||
-                                        x.find("Day") != std::string::npos ||
-                                        x.find("DAY") != std::string::npos;
-      id(${uid}_supports_night_effect) = x.find("night") != std::string::npos ||
-                                          x.find("Night") != std::string::npos ||
-                                          x.find("NIGHT") != std::string::npos;
-  - script.execute: ${uid}_update_visibility
+      id(${uid}_supports_day_effect) = x.find("day") != std::string::npos || x.find("Day") != std::string::npos || x.find("DAY") != std::string::npos;
+      id(${uid}_supports_night_effect) = x.find("night") != std::string::npos || x.find("Night") != std::string::npos || x.find("NIGHT") != std::string::npos;
+  - script.execute: ${uid}_init_page
 
-# Current effect name
+# Current active effect name
 - id: ${uid}_ha_effect
   platform: homeassistant
   entity_id: ${entity_id}
@@ -197,10 +192,10 @@ text_sensor:
   internal: true
   on_value:
   - lambda: id(${uid}_current_effect) = x;
-  - script.execute: ${uid}_update_visibility
+  - script.execute: ${uid}_update_effect_highlight
 
 script:
-# ── Abstract action scripts — REMOTE implementation ───────────────────────────
+# ── Abstract device actions — remote implementation ──────────────────────────
 
 - id: ${uid}_light_toggle
   then:
@@ -237,7 +232,6 @@ script:
         entity_id: ${entity_id}
         color_temp_kelvin: !lambda return (int)id(${uid}_current_color_temp);
 
-# Effect control scripts
 - id: ${uid}_light_apply_effect_day
   then:
   - homeassistant.action:
@@ -253,3 +247,16 @@ script:
       data:
         entity_id: ${entity_id}
         effect: "night"
+
+# NOTE:
+# For other custom effects, add one script per effect name in the same pattern.
+# Example:
+# - id: ${uid}_light_apply_effect_sunrise
+#   then:
+#   - homeassistant.action:
+#       action: light.turn_on
+#       data:
+#         entity_id: ${entity_id}
+#         effect: "sunrise"
+
+
