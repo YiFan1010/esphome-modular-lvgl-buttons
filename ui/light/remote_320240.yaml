@@ -15,7 +15,7 @@
 
 packages:
   ${uid}_detail: !include
-    file: detail_320240.yaml
+    file: detail_320240_simlpe.yaml
     vars:
       uid: ${uid}
       text: ${text}
@@ -182,11 +182,11 @@ text_sensor:
   - lambda: |-
       id(${uid}_supports_effect) = !x.empty() && x != "None";
       id(${uid}_supports_day_effect) = x.find("day") != std::string::npos ||
-                                       x.find("Day") != std::string::npos ||
-                                       x.find("DAY") != std::string::npos;
+                                        x.find("Day") != std::string::npos ||
+                                        x.find("DAY") != std::string::npos;
       id(${uid}_supports_night_effect) = x.find("night") != std::string::npos ||
-                                         x.find("Night") != std::string::npos ||
-                                         x.find("NIGHT") != std::string::npos;
+                                          x.find("Night") != std::string::npos ||
+                                          x.find("NIGHT") != std::string::npos;
   - script.execute: ${uid}_update_visibility
 
 # Current effect name
