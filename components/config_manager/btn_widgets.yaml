@@ -1,0 +1,103 @@
+---
+# 2x2 LVGL button widget definitions
+# IDs: btn_N, label_N, icon_N (N = 0..3)
+# The config_manager component reads /buttons.json from LittleFS
+# and updates these widgets on boot via on_boot script
+
+lvgl:
+  pages:
+    - id: main_page
+      layout: 2x2
+      widgets:
+        # Button 0
+        - container:
+            id: btn_0_container
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: btn_0
+                  widgets:
+                    - label:
+                        id: icon_0
+                        text_font: mdi_icons_160
+                        align: center
+                        text: "\U000F069F"
+                    - label:
+                        id: label_0
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 1"
+        # Button 1
+        - container:
+            id: btn_1_container
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: btn_1
+                  widgets:
+                    - label:
+                        id: icon_1
+                        text_font: mdi_icons_160
+                        align: center
+                        text: "\U000F026B"
+                    - label:
+                        id: label_1
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 2"
+        # Button 2
+        - container:
+            id: btn_2_container
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: btn_2
+                  widgets:
+                    - label:
+                        id: icon_2
+                        text_font: mdi_icons_160
+                        align: center
+                        text: "\U000F06C8"
+                    - label:
+                        id: label_2
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 3"
+        # Button 3
+        - container:
+            id: btn_3_container
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: btn_3
+                  widgets:
+                    - label:
+                        id: icon_3
+                        text_font: mdi_icons_160
+                        align: center
+                        text: "\U000F0733"
+                    - label:
+                        id: label_3
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 4"
