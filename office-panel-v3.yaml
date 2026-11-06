@@ -1,0 +1,597 @@
+substitutions:
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+
+esphome:
+  name: office-panel
+  name_add_mac_suffix: false
+  friendly_name: Office Panel
+  on_boot:
+    - priority: 550
+      then:
+        - delay: 2s
+        - lambda: |-
+            auto *mgr = App.get_component<config_manager::ConfigManagerComponent>("config_manager");
+            if (!mgr) return;
+            auto &b = mgr->buttons_;
+            if (b.size() > 0) { id(btn_entity_id_0) = b[0].entity_id; }
+            if (b.size() > 1) { id(btn_entity_id_1) = b[1].entity_id; }
+            if (b.size() > 2) { id(btn_entity_id_2) = b[2].entity_id; }
+            if (b.size() > 3) { id(btn_entity_id_3) = b[3].entity_id; }
+            if (b.size() > 0) {
+              if (b[0].type == "switch") { id(sw_container_0).show(); id(lt_container_0).hide(); id(sn_container_0).hide(); }
+              else if (b[0].type == "light")  { id(sw_container_0).hide(); id(lt_container_0).show(); id(sn_container_0).hide(); }
+              else                             { id(sw_container_0).hide(); id(lt_container_0).hide(); id(sn_container_0).show(); }
+              id(sw_label_0).set_text(b[0].label); id(sw_icon_0).set_text(mgr->get_icon_hex(b[0].icon));
+              id(lt_label_0).set_text(b[0].label); id(lt_icon_0).set_text(mgr->get_icon_hex(b[0].icon));
+              id(sn_label_0).set_text(b[0].label); id(sn_icon_0).set_text(mgr->get_icon_hex(b[0].icon));
+            }
+            if (b.size() > 1) {
+              if (b[1].type == "switch") { id(sw_container_1).show(); id(lt_container_1).hide(); id(sn_container_1).hide(); }
+              else if (b[1].type == "light")  { id(sw_container_1).hide(); id(lt_container_1).show(); id(sn_container_1).hide(); }
+              else                             { id(sw_container_1).hide(); id(lt_container_1).hide(); id(sn_container_1).show(); }
+              id(sw_label_1).set_text(b[1].label); id(sw_icon_1).set_text(mgr->get_icon_hex(b[1].icon));
+              id(lt_label_1).set_text(b[1].label); id(lt_icon_1).set_text(mgr->get_icon_hex(b[1].icon));
+              id(sn_label_1).set_text(b[1].label); id(sn_icon_1).set_text(mgr->get_icon_hex(b[1].icon));
+            }
+            if (b.size() > 2) {
+              if (b[2].type == "switch") { id(sw_container_2).show(); id(lt_container_2).hide(); id(sn_container_2).hide(); }
+              else if (b[2].type == "light")  { id(sw_container_2).hide(); id(lt_container_2).show(); id(sn_container_2).hide(); }
+              else                             { id(sw_container_2).hide(); id(lt_container_2).hide(); id(sn_container_2).show(); }
+              id(sw_label_2).set_text(b[2].label); id(sw_icon_2).set_text(mgr->get_icon_hex(b[2].icon));
+              id(lt_label_2).set_text(b[2].label); id(lt_icon_2).set_text(mgr->get_icon_hex(b[2].icon));
+              id(sn_label_2).set_text(b[2].label); id(sn_icon_2).set_text(mgr->get_icon_hex(b[2].icon));
+            }
+            if (b.size() > 3) {
+              if (b[3].type == "switch") { id(sw_container_3).show(); id(lt_container_3).hide(); id(sn_container_3).hide(); }
+              else if (b[3].type == "light")  { id(lt_container_3).show(); id(sw_container_3).hide(); id(sn_container_3).hide(); }
+              else                             { id(sn_container_3).show(); id(sw_container_3).hide(); id(lt_container_3).hide(); }
+              id(sw_label_3).set_text(b[3].label); id(sw_icon_3).set_text(mgr->get_icon_hex(b[3].icon));
+              id(lt_label_3).set_text(b[3].label); id(lt_icon_3).set_text(mgr->get_icon_hex(b[3].icon));
+              id(sn_label_3).set_text(b[3].label); id(sn_icon_3).set_text(mgr->get_icon_hex(b[3].icon));
+            }
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 110ms
+    window: 110ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+esp32:
+  board: esp32s3box
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_LITTLEFS_SIZE: "0x200000"
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "CST-8"
+    servers:
+      - "0.pool.ntp.org"
+      - "1.pool.ntp.org"
+
+wireguard:
+  address: 10.1.1.15
+  private_key: "MFY3/9H7d2YLORD9htoHi0RnPczBzlDcGrbP1Nx6AHw="
+  peer_endpoint: "yifan.tplinkdns.com"
+  peer_port: 51820
+  peer_public_key: "k4bkjdJ9vnDkYkZLPUurrI07ZUC1AqZOOaI1P27dChQ="
+  peer_allowed_ips:
+    - 0.0.0.0/0
+  peer_persistent_keepalive: 25s
+
+psram:
+  mode: octal
+
+logger:
+
+api:
+  reboot_timeout: 3min
+
+ota:
+
+captive_portal:
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [config_manager]
+    refresh: 10s
+
+packages:
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota_320240.yaml
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+  hardware: !include esphome-modular-lvgl-buttons/hardware/esp32-s3_320240.yaml
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading_320240.yaml
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info_320240.yaml
+
+font:
+  - file:
+      type: gfonts
+      family: Noto Sans TC
+    id: font_cn
+    size: 20
+    glyphs: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789大門开关燈風扇太陽月亮門鎖相機設定按鈕開關燈狀態"
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons
+    size: 48
+    bpp: 8
+    glyphs:
+      - $mdi_lock
+      - $mdi_lock_open
+      - $mdi_lightbulb
+      - $mdi_fan
+      - $mdi_sun
+      - $mdi_moon
+      - $mdi_curtains
+      - $mdi_gate
+      - $mdi_garage
+      - $mdi_door
+      - $mdi_camera
+      - $mdi_thermometer
+      - $mdi_volume_high
+      - $mdi_music_note
+      - $mdi_calendar
+      - $mdi_clock
+      - $mdi_bell
+      - $mdi_power
+      - $mdi_settings
+      - $mdi_home
+      - $mdi_arrow_right
+      - $mdi_alert_circle
+      - $mdi_chevron_left
+      - $mdi_reboot
+      - $mdi_close
+      - $mdi_wifi
+      - $mdi_light_switch
+      - $mdi_light_on
+      - $mdi_information
+
+globals:
+  - id: btn_entity_id_0
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: btn_entity_id_1
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: btn_entity_id_2
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: btn_entity_id_3
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+
+lvgl:
+  buffer_size: 80%
+  on_idle:
+    timeout: 30000ms
+    then:
+      - script.execute: light_down_tft
+
+  top_layer:
+    widgets:
+      - obj:
+          id: idle_page
+          bg_color: 0x000000
+          bg_opa: 0
+          width: 320
+          height: 240
+          on_click:
+            - script.execute: light_up_tft
+
+  pages:
+    - id: main_page
+      layout: 2x2
+      styles: page_style
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+      widgets:
+
+        # BUTTON 0
+        - container:
+            id: sw_container_0
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: sw_btn_0
+                  widgets:
+                    - label:
+                        id: sw_icon_0
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F005E"
+                    - label:
+                        id: sw_label_0
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 1"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: homeassistant.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_0).c_str();'
+
+        - container:
+            id: lt_container_0
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: lt_btn_0
+                  widgets:
+                    - label:
+                        id: lt_icon_0
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F005E"
+                    - label:
+                        id: lt_label_0
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 1"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_0).c_str();'
+                  on_long_click:
+                    duration: 500ms
+                    then:
+                      - lvgl.page.show:
+                          id: lt_page_0
+                          animation: MOVE_DOWN
+                          time: 300ms
+
+        - container:
+            id: sn_container_0
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: sn_btn_0
+                  enabled: false
+                  widgets:
+                    - label:
+                        id: sn_icon_0
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F005E"
+                    - label:
+                        id: sn_label_0
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 1"
+
+        # BUTTON 1
+        - container:
+            id: sw_container_1
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: sw_btn_1
+                  widgets:
+                    - label:
+                        id: sw_icon_1
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F026B"
+                    - label:
+                        id: sw_label_1
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 2"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: homeassistant.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_1).c_str();'
+
+        - container:
+            id: lt_container_1
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: lt_btn_1
+                  widgets:
+                    - label:
+                        id: lt_icon_1
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F026B"
+                    - label:
+                        id: lt_label_1
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 2"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_1).c_str();'
+                  on_long_click:
+                    duration: 500ms
+                    then:
+                      - lvgl.page.show:
+                          id: lt_page_1
+                          animation: MOVE_DOWN
+                          time: 300ms
+
+        - container:
+            id: sn_container_1
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: sn_btn_1
+                  enabled: false
+                  widgets:
+                    - label:
+                        id: sn_icon_1
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F026B"
+                    - label:
+                        id: sn_label_1
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 2"
+
+        # BUTTON 2
+        - container:
+            id: sw_container_2
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: sw_btn_2
+                  widgets:
+                    - label:
+                        id: sw_icon_2
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F06C8"
+                    - label:
+                        id: sw_label_2
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 3"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: homeassistant.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_2).c_str();'
+
+        - container:
+            id: lt_container_2
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: lt_btn_2
+                  widgets:
+                    - label:
+                        id: lt_icon_2
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F06C8"
+                    - label:
+                        id: lt_label_2
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 3"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_2).c_str();'
+                  on_long_click:
+                    duration: 500ms
+                    then:
+                      - lvgl.page.show:
+                          id: lt_page_2
+                          animation: MOVE_DOWN
+                          time: 300ms
+
+        - container:
+            id: sn_container_2
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: sn_btn_2
+                  enabled: false
+                  widgets:
+                    - label:
+                        id: sn_icon_2
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F06C8"
+                    - label:
+                        id: sn_label_2
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 3"
+
+        # BUTTON 3
+        - container:
+            id: sw_container_3
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            widgets:
+              - button:
+                  id: sw_btn_3
+                  widgets:
+                    - label:
+                        id: sw_icon_3
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F0733"
+                    - label:
+                        id: sw_label_3
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 4"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: homeassistant.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_3).c_str();'
+
+        - container:
+            id: lt_container_3
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: lt_btn_3
+                  widgets:
+                    - label:
+                        id: lt_icon_3
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F0733"
+                    - label:
+                        id: lt_label_3
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 4"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: !lambda 'return id(btn_entity_id_3).c_str();'
+                  on_long_click:
+                    duration: 500ms
+                    then:
+                      - lvgl.page.show:
+                          id: lt_page_3
+                          animation: MOVE_DOWN
+                          time: 300ms
+
+        - container:
+            id: sn_container_3
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            grid_cell_x_align: stretch
+            grid_cell_y_align: stretch
+            hidden: true
+            widgets:
+              - button:
+                  id: sn_btn_3
+                  enabled: false
+                  widgets:
+                    - label:
+                        id: sn_icon_3
+                        text_font: mdi_icons
+                        align: center
+                        text: "\\U000F0733"
+                    - label:
+                        id: sn_label_3
+                        align: bottom_center
+                        text_font: font_cn
+                        text: "Button 4"
+
+script:
+  - id: light_down_tft
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 30%
+            - lvgl.page.show: main_page
+            - lvgl.widget.show: idle_page
+            - lambda: id(backlight_dimmed) = true;
+            - logger.log: "螢幕閒置 30 秒，亮度降至 30"
+  - id: light_up_tft
+    then:
+      - lvgl.widget.hide: idle_page
+      - lvgl.page.show: main_page
+      - if:
+          condition:
+            lambda: 'return id(backlight_dimmed);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 100%
+            - lambda: id(backlight_dimmed) = false;
+            - logger.log: "螢幕被喚醒，亮度恢復 100"
+            - lvgl.resume:
